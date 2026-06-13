@@ -13,11 +13,18 @@ const undoCanvas = (toolSettings, setToolSettings) => {
     const penultimateItem = undoStack[undoStack.length - 1];
     canvas.clear();
     canvas.renderAll();
-    canvas.loadFromJSON(penultimateItem, () => {
-      // De-select everything
+    if (penultimateItem) {
+      canvas.loadFromJSON(penultimateItem, () => {
+        // De-select everything
+        canvas.discardActiveObject();
+        canvas.renderAll();
+      });
+    } else {
+      // Undoing the last remaining state: the canvas is already cleared, so
+      // just finalize. loadFromJSON(undefined) would throw inside fabric.
       canvas.discardActiveObject();
       canvas.renderAll();
-    });
+    }
     setToolSettings({
       ...toolSettings,
       undoStack,

@@ -95,8 +95,17 @@ const SettingsMenu = (props) => {
                 const a = document.createElement("a");
                 a.href = url;
                 a.download = "screenity-troubleshooting.zip";
+                a.style.display = "none";
+                document.body.appendChild(a);
                 a.click();
-                window.URL.revokeObjectURL(url);
+
+                // Defer revocation so the download can start before the blob
+                // URL is released — revoking synchronously after click() can
+                // abort the download in some browsers.
+                setTimeout(() => {
+                  window.URL.revokeObjectURL(url);
+                  a.remove();
+                }, 1000);
 
                 chrome.runtime.sendMessage({
                   type: "indexed-db-download",

@@ -48,7 +48,10 @@ export class VideoMuter {
     try {
       const buf = await videoBlob.arrayBuffer();
       const ctx = new AudioContext();
-      decodedAudio = await ctx.decodeAudioData(buf);
+      // Close the context after decoding — browsers cap concurrent
+      // AudioContexts, so leaking one per mute eventually makes new
+      // AudioContext() throw and silently skips muting.
+      decodedAudio = await ctx.decodeAudioData(buf).finally(() => ctx.close());
     } catch {}
 
     const sr = decodedAudio?.sampleRate || 48000;
@@ -61,7 +64,9 @@ export class VideoMuter {
 
       for (let i = 0; i < channelData.length; i++) {
         mixBuffer[i] =
-          i >= muteStartSample && i < muteEndSample ? 0 : channelData[i] * videoVolume;
+          i >= muteStartSample && i < muteEndSample
+            ? 0
+            : channelData[i] * videoVolume;
       }
     } else {
       return videoBlob;

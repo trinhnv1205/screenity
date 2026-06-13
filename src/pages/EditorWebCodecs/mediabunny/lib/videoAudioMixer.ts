@@ -60,7 +60,11 @@ export class VideoAudioMixer {
 
     const bgArrayBuffer = await audioBlob.arrayBuffer();
     const audioCtx = new AudioContext();
-    const decodedAudio = await audioCtx.decodeAudioData(bgArrayBuffer);
+    // Close the context once decoded — leaking one per mix eventually exhausts
+    // the browser's AudioContext limit. The decoded AudioBuffer stays valid.
+    const decodedAudio = await audioCtx
+      .decodeAudioData(bgArrayBuffer)
+      .finally(() => audioCtx.close());
     const sr = decodedAudio.sampleRate;
     const audioDur = decodedAudio.duration;
 
@@ -84,9 +88,9 @@ export class VideoAudioMixer {
       try {
         const videoArrayBuffer = await videoBlob.arrayBuffer();
         const videoAudioCtx = new AudioContext();
-        const decodedVideoAudio = await videoAudioCtx.decodeAudioData(
-          videoArrayBuffer
-        );
+        const decodedVideoAudio = await videoAudioCtx
+          .decodeAudioData(videoArrayBuffer)
+          .finally(() => videoAudioCtx.close());
         const videoSamples = decodedVideoAudio.getChannelData(0);
         writeMix(videoSamples, 0, videoVolume);
       } catch {}

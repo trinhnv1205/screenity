@@ -1267,7 +1267,17 @@ const ContentState = (props) => {
   const waitForUpdatedBlob = () => {
     return new Promise((resolve) => {
       const handler = (event) => {
-        if (event.data?.type === "updated-blob") {
+        // Resolve on any terminal outcome. The only caller (downloadWEBM) runs
+        // the "to-webm" op which emits "download-webm" — not "updated-blob" — so
+        // the original check never matched, leaking this listener every export
+        // and never running the post-await code. Also resolve on ffmpeg-error
+        // so a failed operation doesn't hang forever.
+        const type = event.data?.type;
+        if (
+          type === "updated-blob" ||
+          type === "download-webm" ||
+          type === "ffmpeg-error"
+        ) {
           window.removeEventListener("message", handler);
           resolve();
         }

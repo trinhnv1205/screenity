@@ -163,9 +163,9 @@ const Recorder = () => {
 
   // Post message listener
   useEffect(() => {
-    window.addEventListener("message", (event) => {
-      onMessage(event.data);
-    });
+    const listener = (event) => onMessage(event.data);
+    window.addEventListener("message", listener);
+    return () => window.removeEventListener("message", listener);
   }, []);
 
   return <div></div>;

@@ -48,6 +48,8 @@ export class WebCodecsRecorder {
     this.selectedVideoCodec = null;
     this.firstVideoFrame = undefined;
     this.frameCount = 0;
+    this.startTimeUs = null;
+    this.firstAudioTs = null;
     // Monotonic video frame index for safe timestamps
     this._videoFrameIndex = 0;
 
@@ -368,6 +370,15 @@ export class WebCodecsRecorder {
     this.firstVideoFrame = undefined;
     this.selectedVideoCodec = null;
     this._videoFrameIndex = 0;
+    this.startTimeUs = null;
+    this.frameCount = 0;
+    this.firstAudioTs = null;
+
+    try {
+      for (const buffered of this._prebufferedAudio) buffered.close?.();
+    } catch {}
+    this._prebufferedAudio = [];
+    this._audioReady = false;
 
     this.resizeCanvas = null;
     this.resizeCtx = null;
@@ -575,14 +586,28 @@ export class WebCodecsRecorder {
           continue;
         }
 
+        // Encoder just became ready: flush frames captured before init so
+        // the start of the recording's audio isn't silently dropped.
+        if (this._prebufferedAudio.length) {
+          const buffered = this._prebufferedAudio;
+          this._prebufferedAudio = [];
+          for (const early of buffered) {
+            if (this.firstAudioTs === null) this.firstAudioTs = early.timestamp;
+            try {
+              this.audioEncoder.encode(early);
+            } catch (err) {
+              this.err("[WCR] prebuffered audio encode error:", err);
+            }
+            early.close?.();
+          }
+        }
+
         if (this.firstAudioTs === null) {
           this.firstAudioTs = audioData.timestamp;
         }
 
         try {
-          this.audioEncoder.encode(audioData, {
-            timestamp: audioData.timestamp - this.firstAudioTs,
-          });
+          this.audioEncoder.encode(audioData);
         } catch (err) {
           audioData.close?.();
           this.options.onError?.(err);

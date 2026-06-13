@@ -216,14 +216,13 @@ const Sandbox = () => {
   };
 
   useEffect(() => {
-    window.addEventListener("message", (event) => {
-      onMessage(event.data);
-    });
+    // Use one stable reference for add/remove — the previous code passed two
+    // different inline functions, so the listener was never actually removed.
+    const listener = (event) => onMessage(event.data);
+    window.addEventListener("message", listener);
 
     return () => {
-      window.removeEventListener("message", (event) => {
-        onMessage(event.data);
-      });
+      window.removeEventListener("message", listener);
     };
   }, []);
 

@@ -817,6 +817,20 @@ const ContentState = (props) => {
       //     contentState.loadFFmpeg();
       //   });
       // }
+    } else if (event.data.type === "ffmpeg-error") {
+      // An editing/conversion operation failed in the sandbox. Without this the
+      // editor stayed stuck on the processing spinner forever. Clear the
+      // in-progress flags so the UI recovers instead of hanging.
+      console.error("Video processing failed:", event.data.error);
+      setContentState((prevContentState) => ({
+        ...prevContentState,
+        isFfmpegRunning: false,
+        cropping: false,
+        downloading: false,
+        downloadingGIF: false,
+        downloadingWEBM: false,
+        processingProgress: 0,
+      }));
     } else if (event.data.type === "crop-update") {
       setContentState((prevContentState) => ({
         ...prevContentState,

@@ -775,6 +775,12 @@ const ContentState = (props) => {
       }));
     } else if (event.data.type === "new-frame") {
       const url = URL.createObjectURL(event.data.frame);
+      // Revoke the previously generated frame URL so we don't leak a blob URL
+      // every time a new frame is produced (e.g. while scrubbing or cropping).
+      const prevFrame = contentStateRef.current.frame;
+      if (prevFrame && prevFrame.startsWith("blob:")) {
+        URL.revokeObjectURL(prevFrame);
+      }
       setContentState((prevContentState) => ({
         ...prevContentState,
         frame: url,
@@ -811,6 +817,20 @@ const ContentState = (props) => {
       //     contentState.loadFFmpeg();
       //   });
       // }
+    } else if (event.data.type === "ffmpeg-error") {
+      // An editing/conversion operation failed in the sandbox. Without this the
+      // editor stayed stuck on the processing spinner forever. Clear the
+      // in-progress flags so the UI recovers instead of hanging.
+      console.error("Video processing failed:", event.data.error);
+      setContentState((prevContentState) => ({
+        ...prevContentState,
+        isFfmpegRunning: false,
+        cropping: false,
+        downloading: false,
+        downloadingGIF: false,
+        downloadingWEBM: false,
+        processingProgress: 0,
+      }));
     } else if (event.data.type === "crop-update") {
       setContentState((prevContentState) => ({
         ...prevContentState,
@@ -1247,7 +1267,17 @@ const ContentState = (props) => {
   const waitForUpdatedBlob = () => {
     return new Promise((resolve) => {
       const handler = (event) => {
-        if (event.data?.type === "updated-blob") {
+        // Resolve on any terminal outcome. The only caller (downloadWEBM) runs
+        // the "to-webm" op which emits "download-webm" — not "updated-blob" — so
+        // the original check never matched, leaking this listener every export
+        // and never running the post-await code. Also resolve on ffmpeg-error
+        // so a failed operation doesn't hang forever.
+        const type = event.data?.type;
+        if (
+          type === "updated-blob" ||
+          type === "download-webm" ||
+          type === "ffmpeg-error"
+        ) {
           window.removeEventListener("message", handler);
           resolve();
         }

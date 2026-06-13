@@ -917,6 +917,8 @@ const Recorder = () => {
 
         if (stream.getVideoTracks().length === 0) {
           debugError("No video tracks returned from getUserMedia");
+          // Release the stream we just opened so its tracks don't stay live.
+          stream.getTracks().forEach((t) => t.stop());
           sendRecordingError("No video tracks available");
           return;
         }

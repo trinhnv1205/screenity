@@ -28,8 +28,10 @@ export const stopRecording = async () => {
 
   chrome.storage.local.set({ recordingStartTime: 0 });
 
-  // Check if browser supports WebCodecs for Mediabunny
-  const hasWebCodecs = supportsWebCodecs();
+  // Check if browser supports WebCodecs for Mediabunny. supportsWebCodecs is
+  // async — without await this was always a truthy Promise, so the WebCodecs
+  // editor branch was taken even on browsers without WebCodecs support.
+  const hasWebCodecs = await supportsWebCodecs();
 
   if (isSubscribed) {
     chrome.alarms.clear("recording-alarm");

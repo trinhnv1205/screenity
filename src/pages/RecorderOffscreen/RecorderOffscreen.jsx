@@ -553,6 +553,10 @@ const RecorderOffscreen = () => {
 
           // Check if the stream actually has data in it
           if (stream.getVideoTracks().length === 0) {
+            // Abort: release the streams we already opened so the camera/mic
+            // indicators don't stay on after a failed recording start.
+            stream.getTracks().forEach((t) => t.stop());
+            micstream?.getTracks().forEach((t) => t.stop());
             chrome.runtime.sendMessage({
               type: "recording-error",
               error: "stream-error",
@@ -573,6 +577,10 @@ const RecorderOffscreen = () => {
 
           // Check if the stream actually has data in it
           if (stream.getVideoTracks().length === 0) {
+            // Abort: release the streams we already opened so the camera/mic
+            // indicators don't stay on after a failed recording start.
+            stream.getTracks().forEach((t) => t.stop());
+            micstream?.getTracks().forEach((t) => t.stop());
             chrome.runtime.sendMessage({
               type: "recording-error",
               error: "stream-error",

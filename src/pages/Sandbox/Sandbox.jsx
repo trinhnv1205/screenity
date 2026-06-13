@@ -101,6 +101,7 @@ const Sandbox = () => {
   useEffect(() => {
     // Check if we need to show support banner
     chrome.runtime.sendMessage({ type: "check-banner-support" }, (response) => {
+      if (chrome.runtime.lastError) return;
       if (response && response.bannerSupport) {
         setContentState((prev) => ({
           ...prev,

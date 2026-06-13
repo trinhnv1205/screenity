@@ -197,9 +197,9 @@ const Recorder = () => {
         restartRecording();
       }
     };
-    window.addEventListener("message", (event) => {
-      onMessage(event);
-    });
+    // Add the same reference we remove below, otherwise the listener (added as
+    // an anonymous wrapper) was never actually removed on cleanup.
+    window.addEventListener("message", onMessage);
 
     return () => {
       window.removeEventListener("message", onMessage);

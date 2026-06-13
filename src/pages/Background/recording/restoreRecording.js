@@ -15,7 +15,10 @@ export const checkRestore = async () => {
 };
 
 export const restoreRecording = async () => {
-  const hasWebCodecs = supportsWebCodecs();
+  // supportsWebCodecs is async — without await this was always a truthy
+  // Promise, so the WebCodecs editor was always chosen and the viewer fallback
+  // for unsupported browsers was never used.
+  const hasWebCodecs = await supportsWebCodecs();
 
   let editorUrl, messageType;
 

@@ -3,16 +3,24 @@ import { sendMessageTab } from "../tabManagement";
 export const handleTabUpdate = async (tabId, changeInfo, tab) => {
   try {
     if (changeInfo.status === "complete") {
-      const { recording } = await chrome.storage.local.get(["recording"]);
-      const { restarting } = await chrome.storage.local.get(["restarting"]);
-      const { tabRecordedID } = await chrome.storage.local.get([
+      // Batch all storage reads into a single call instead of separate
+      // round-trips on every tab "complete" event.
+      const {
+        recording,
+        restarting,
+        tabRecordedID,
+        pendingRecording,
+        recordingStartTime,
+        alarm,
+        alarmTime,
+      } = await chrome.storage.local.get([
+        "recording",
+        "restarting",
         "tabRecordedID",
-      ]);
-      const { pendingRecording } = await chrome.storage.local.get([
         "pendingRecording",
-      ]);
-      const { recordingStartTime } = await chrome.storage.local.get([
         "recordingStartTime",
+        "alarm",
+        "alarmTime",
       ]);
 
       if (!recording && !restarting && !pendingRecording) {
@@ -31,9 +39,7 @@ export const handleTabUpdate = async (tabId, changeInfo, tab) => {
 
       if (recordingStartTime) {
         // Check if alarm
-        const { alarm } = await chrome.storage.local.get(["alarm"]);
         if (alarm) {
-          const { alarmTime } = await chrome.storage.local.get(["alarmTime"]);
           const seconds = parseFloat(alarmTime);
           const time = Math.floor((Date.now() - recordingStartTime) / 1000);
           const remaining = seconds - time;

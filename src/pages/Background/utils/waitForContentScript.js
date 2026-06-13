@@ -26,6 +26,13 @@ export const waitForContentScript = async (
 
       // Ping the content script
       chrome.tabs.sendMessage(tabId, { type: "ping" }, (response) => {
+        // The content script is not guaranteed to be injected yet, so early
+        // pings will set chrome.runtime.lastError ("Could not establish
+        // connection"). Read it here to avoid "Unchecked runtime.lastError"
+        // console spam on every poll while we wait for it to become ready.
+        if (chrome.runtime.lastError) {
+          return;
+        }
         if (response?.status === "ready") {
           clearInterval(intervalId);
           resolve();

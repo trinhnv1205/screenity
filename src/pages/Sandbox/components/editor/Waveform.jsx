@@ -10,6 +10,7 @@ const WaveformGenerator = (props) => {
   const customCursorRef = useRef(null);
   const ghostCursorRef = useRef(null);
   const [showGhost, setShowGhost] = useState(false);
+  const [videoDuration, setVideoDuration] = useState(0);
   const mouseDown = useRef(false);
 
   async function blobToArrayBuffer(blob) {
@@ -122,25 +123,41 @@ const WaveformGenerator = (props) => {
     };
   }, [contentState.blob]);
 
+  // Read the video duration once per blob instead of recreating a <video>
+  // element (and an object URL of the whole blob) on every playhead tick.
   useEffect(() => {
     if (!contentState.blob) return;
-    if (contentState.updatePlayerTime) return;
-    if (waveformContainerRef.current === null) return;
-
+    let cancelled = false;
     const video = document.createElement("video");
     video.preload = "metadata";
-    video.onloadedmetadata = async () => {
-      const containerRect =
-        waveformContainerRef.current.getBoundingClientRect();
-      const cursorX =
-        containerRect.width * (contentState.time / video.duration);
-      customCursorRef.current.style.left = `${cursorX}px`;
-
+    video.onloadedmetadata = () => {
+      if (!cancelled) setVideoDuration(video.duration);
       URL.revokeObjectURL(video.src);
       video.remove();
     };
     video.src = URL.createObjectURL(contentState.blob);
-  }, [contentState.time, contentState.blob, waveformContainerRef.current]);
+    return () => {
+      cancelled = true;
+    };
+  }, [contentState.blob]);
+
+  // Position the custom cursor from the cached duration — no per-tick work.
+  useEffect(() => {
+    if (!contentState.blob) return;
+    if (contentState.updatePlayerTime) return;
+    if (waveformContainerRef.current === null) return;
+    if (!videoDuration) return;
+    if (!customCursorRef.current) return;
+
+    const containerRect = waveformContainerRef.current.getBoundingClientRect();
+    const cursorX = containerRect.width * (contentState.time / videoDuration);
+    customCursorRef.current.style.left = `${cursorX}px`;
+  }, [
+    contentState.time,
+    contentState.blob,
+    contentState.updatePlayerTime,
+    videoDuration,
+  ]);
 
   return (
     <div style={{ height: "100%" }}>

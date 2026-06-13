@@ -30,15 +30,16 @@ export const initBackup = async (request, id) => {
 
   if (backupTab) {
     chrome.tabs.get(backupTab, (tab) => {
-      if (tab) {
-        sendMessageTab(tab.id, {
-          type: "init-backup",
-          request: request,
-          tabId: id,
-        });
-      } else {
+      // lastError is set (and tab undefined) when the stored backup tab is gone.
+      if (chrome.runtime.lastError || !tab) {
         createBackupTab();
+        return;
       }
+      sendMessageTab(tab.id, {
+        type: "init-backup",
+        request: request,
+        tabId: id,
+      });
     });
   } else {
     createBackupTab();

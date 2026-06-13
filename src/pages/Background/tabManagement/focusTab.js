@@ -4,6 +4,12 @@ export const focusTab = async (tabId) => {
   try {
     const tab = await new Promise((resolve) => {
       chrome.tabs.get(tabId, (tab) => {
+        // Reading lastError avoids an "Unchecked runtime.lastError" warning
+        // when the tab no longer exists.
+        if (chrome.runtime.lastError) {
+          resolve(null);
+          return;
+        }
         resolve(tab);
       });
     });

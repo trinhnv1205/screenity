@@ -95,7 +95,10 @@ export const setupHandlers = () => {
   registerMessage("restarted", (message) => restartActiveTab(message));
 
   registerMessage("new-chunk", (message, sender, sendResponse) => {
-    newChunk(message, sendResponse);
+    // newChunk's signature is (request, sender, sendResponse); passing only
+    // (message, sendResponse) left its sendResponse undefined, so it threw when
+    // trying to acknowledge the chunk.
+    newChunk(message, sender, sendResponse);
     return true;
   });
 
@@ -104,7 +107,7 @@ export const setupHandlers = () => {
     async (message, sender) => await handleGetStreamingData(message, sender)
   );
   registerMessage("cancel-recording", (message) => cancelRecording(message));
-  registerMessage("stop-recording-tab", (message, sendResponse) => {
+  registerMessage("stop-recording-tab", (message, sender, sendResponse) => {
     handleStopRecordingTab(message);
     sendResponse({ ok: true });
     return true;
@@ -878,11 +881,16 @@ export const setupHandlers = () => {
     const url = `https://tally.so/r/310MNg?${query.toString()}`;
     createTab(url, true, true);
   });
-  registerMessage("check-banner-support", async (message, sendResponse) => {
-    const { bannerSupport } = await chrome.storage.local.get(["bannerSupport"]);
-    sendResponse({ bannerSupport: Boolean(bannerSupport) });
-    return true;
-  });
+  registerMessage(
+    "check-banner-support",
+    async (message, sender, sendResponse) => {
+      const { bannerSupport } = await chrome.storage.local.get([
+        "bannerSupport",
+      ]);
+      sendResponse({ bannerSupport: Boolean(bannerSupport) });
+      return true;
+    }
+  );
   registerMessage("hide-banner", async () => {
     await chrome.storage.local.set({ bannerSupport: false });
     chrome.runtime.sendMessage({ type: "hide-banner" });
@@ -895,20 +903,23 @@ export const setupHandlers = () => {
       return { success: false, message: "Cloud features disabled" };
     return await loginWithWebsite();
   });
-  registerMessage("sync-recording-state", async (message, sendResponse) => {
-    const { recording, paused, recordingStartTime, pendingRecording } =
-      await chrome.storage.local.get([
-        "recording",
-        "paused",
-        "recordingStartTime",
-        "pendingRecording",
-      ]);
-    sendResponse({
-      recording: Boolean(recording),
-      paused: Boolean(paused),
-      recordingStartTime: recordingStartTime || null,
-      pendingRecording: Boolean(pendingRecording),
-    });
-    return true;
-  });
+  registerMessage(
+    "sync-recording-state",
+    async (message, sender, sendResponse) => {
+      const { recording, paused, recordingStartTime, pendingRecording } =
+        await chrome.storage.local.get([
+          "recording",
+          "paused",
+          "recordingStartTime",
+          "pendingRecording",
+        ]);
+      sendResponse({
+        recording: Boolean(recording),
+        paused: Boolean(paused),
+        recordingStartTime: recordingStartTime || null,
+        pendingRecording: Boolean(pendingRecording),
+      });
+      return true;
+    }
+  );
 };

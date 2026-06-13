@@ -12,33 +12,20 @@ export const getCameraStream = async (
   offScreenCanvasContextRef,
   { onStart = () => {}, onFinish = () => {} } = {}
 ) => {
-  const { setWidth, setHeight, recordingTypeRef } = getContextRefs();
+  const contextRefs = getContextRefs();
+  const { setWidth, setHeight, recordingTypeRef } = contextRefs;
 
   onStart();
 
-  if (!streamRef) {
-    console.warn("⚠️ streamRef is undefined. Creating a new reference.");
-    streamRef = { current: new MediaStream() };
-  }
-
-  if (!videoRef) {
-    console.warn("⚠️ videoRef is undefined. Creating a new reference.");
-    videoRef = { current: null };
-  }
-
-  if (!offScreenCanvasRef) {
-    console.warn(
-      "⚠️ offScreenCanvasRef is undefined. Creating a new reference."
-    );
-    offScreenCanvasRef = { current: null };
-  }
-
-  if (!offScreenCanvasContextRef) {
-    console.warn(
-      "⚠️ offScreenCanvasContextRef is undefined. Creating a new reference."
-    );
-    offScreenCanvasContextRef = { current: null };
-  }
+  // Fall back to the shared context refs when a caller omits them (e.g.
+  // cameraToggledToolbar). Previously these defaulted to throwaway refs, so the
+  // stream was attached to a detached <video>, never displayed, and could never
+  // be stopped.
+  if (!streamRef) streamRef = contextRefs.streamRef;
+  if (!videoRef) videoRef = contextRefs.videoRef;
+  if (!offScreenCanvasRef) offScreenCanvasRef = contextRefs.offScreenCanvasRef;
+  if (!offScreenCanvasContextRef)
+    offScreenCanvasContextRef = contextRefs.offScreenCanvasContextRef;
 
   try {
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -116,6 +103,16 @@ export const getCameraStream = async (
 };
 
 export const stopCameraStream = (streamRef, videoRef) => {
+  // Every call site invokes this as stopCameraStream() with no arguments, so
+  // without resolving the shared context refs here the stream was never
+  // actually stopped — the camera stayed live (indicator light on) and a new
+  // getUserMedia stream was stacked on top when switching cameras.
+  if (!streamRef || !videoRef) {
+    const contextRefs = getContextRefs();
+    if (!streamRef) streamRef = contextRefs.streamRef;
+    if (!videoRef) videoRef = contextRefs.videoRef;
+  }
+
   if (!streamRef?.current) {
     console.warn("⚠️ No active stream to stop.");
     return;

@@ -186,7 +186,7 @@ const ContentState = (props) => {
     });
     setTimer(0);
     chrome.runtime.sendMessage({ type: "stop-recording-tab" }, (res) => {
-      if (!res || res.ok !== true) {
+      if (chrome.runtime.lastError || !res || res.ok !== true) {
         console.warn("Stop command not acknowledged, retrying…");
         setTimeout(() => {
           chrome.runtime.sendMessage({ type: "stop-recording-tab" });
@@ -867,7 +867,7 @@ const ContentState = (props) => {
 
   useEffect(() => {
     chrome.runtime.sendMessage({ type: "sync-recording-state" }, (state) => {
-      if (!state) return;
+      if (chrome.runtime.lastError || !state) return;
       setContentState((prev) => ({ ...prev, ...state }));
     });
   }, []);

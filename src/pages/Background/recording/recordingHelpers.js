@@ -64,7 +64,10 @@ export const handleRecordingComplete = async () => {
 
   if (recordingTab) {
     chrome.tabs.get(recordingTab, (tab) => {
-      if (tab) {
+      // Reading lastError avoids an "Unchecked runtime.lastError" warning when
+      // the stored recordingTab no longer exists.
+      if (chrome.runtime.lastError) return;
+      if (tab && tab.url) {
         // Check if tab url contains chrome-extension and recorder.html
         if (
           tab.url.includes("chrome-extension") &&

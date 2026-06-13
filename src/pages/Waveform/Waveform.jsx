@@ -12,6 +12,11 @@ const Waveform = () => {
     const canvas = canvasRef.current;
     const canvasContext = canvas.getContext("2d");
 
+    // Guards against the mic being left on when the component unmounts before
+    // getUserMedia resolves (e.g. the user closes the popup while the
+    // permission prompt is still pending).
+    let cancelled = false;
+
     function initializeAudioContext() {
       if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -94,6 +99,13 @@ const Waveform = () => {
       navigator.mediaDevices
         .getUserMedia({ audio: true, video: false })
         .then((stream) => {
+          // The component already unmounted while we were waiting for the
+          // permission/stream — release it immediately instead of leaving the
+          // microphone active.
+          if (cancelled) {
+            stream.getTracks().forEach((track) => track.stop());
+            return;
+          }
           audioStream = stream;
           initializeAudioContext();
           const audioSource = audioContext.createMediaStreamSource(audioStream);
@@ -109,13 +121,19 @@ const Waveform = () => {
         const tracks = audioStream.getTracks();
         tracks.forEach((track) => track.stop());
         audioStream = null;
-        stopVisualization();
+      }
+      stopVisualization();
+      // Release the AudioContext too, otherwise it stays open after unmount.
+      if (audioContext && audioContext.state !== "closed") {
+        audioContext.close();
+        audioContext = null;
       }
     }
 
     startAudioCapture();
 
     return () => {
+      cancelled = true;
       stopAudioCapture();
     };
   }, []);

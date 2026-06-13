@@ -37,7 +37,7 @@ const Download = () => {
     }
   };
 
-  const handleMessage = useCallback((message, sender, sendResponse) => {
+  const handleMessage = useCallback((message) => {
     if (message.type === "download-video") {
       const base64 = message.base64;
       const blob = base64ToUint8Array(base64);
@@ -50,9 +50,16 @@ const Download = () => {
           filename: title,
           saveAs: true,
         })
-        .then(() => {
+        .catch((error) => {
+          // Download was canceled (e.g. the user dismissed the "Save as"
+          // dialog) or failed. Swallow it so we still clean up below.
+          console.warn("Download did not complete:", error?.message || error);
+        })
+        .finally(() => {
+          // Always revoke the object URL and close this hidden helper tab,
+          // otherwise a canceled download leaks the blob and leaves an
+          // orphaned background tab open.
           URL.revokeObjectURL(url);
-          // Close this tab
           window.close();
         });
     } else if (message.type === "recover-indexed-db") {
@@ -71,29 +78,32 @@ const Download = () => {
               filename: "recovered-video.webm",
               saveAs: true,
             })
-            .then(() => {
+            .catch((error) => {
+              console.warn(
+                "Recovery download did not complete:",
+                error?.message || error
+              );
+            })
+            .finally(() => {
               URL.revokeObjectURL(url);
               // Close this tab
               window.close();
             });
         });
     }
-  });
+  }, []);
 
   useEffect(() => {
-    // chrome on message
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      handleMessage(message);
-    });
+    // Register a single, stable listener reference so the cleanup can actually
+    // remove it (previously add/remove used two different inline functions, so
+    // the listener was never removed).
+    const listener = (message) => handleMessage(message);
+    chrome.runtime.onMessage.addListener(listener);
 
     return () => {
-      chrome.runtime.onMessage.removeListener(
-        (message, sender, sendResponse) => {
-          handleMessage(message);
-        }
-      );
+      chrome.runtime.onMessage.removeListener(listener);
     };
-  }, []);
+  }, [handleMessage]);
 
   return <div></div>;
 };

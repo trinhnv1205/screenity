@@ -5,6 +5,11 @@ export const onCommandListener = () => {
   chrome.commands.onCommand.addListener(async (command) => {
     const activeTab = await getCurrentTab();
 
+    // getCurrentTab() returns undefined when there is no active tab in the
+    // last focused window (e.g. focus is on devtools or a non-browser window).
+    // Bail out instead of throwing on activeTab.url below.
+    if (!activeTab || !activeTab.url) return;
+
     if (command === "start-recording") {
       // Validate if it's possible to inject into content
       if (

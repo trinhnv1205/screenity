@@ -10,7 +10,8 @@ export const checkRecording = async () => {
   if (recordingTab && !offscreen) {
     try {
       chrome.tabs.get(recordingTab, (tab) => {
-        if (!tab) {
+        // lastError is set (and tab undefined) when the recording tab is gone.
+        if (chrome.runtime.lastError || !tab) {
           discardRecording();
         }
       });

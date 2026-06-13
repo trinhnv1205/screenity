@@ -24,7 +24,7 @@ const openRecorderTab = async (
       switchTab = false;
     }
   } else {
-    switchTab = activeTab.url.includes(
+    switchTab = activeTab.url?.includes(
       chrome.runtime.getURL("playground.html")
     );
   }
@@ -74,13 +74,26 @@ export const offscreenDocument = async (request, tabId = null) => {
     activeTab = await chrome.tabs.get(tabId);
   }
 
+  // getCurrentTab() can resolve to undefined when no tab is active in the last
+  // focused window. Bail out with an error instead of throwing on activeTab.id
+  // / activeTab.url below (which would fail recording start silently).
+  if (!activeTab || !activeTab.id) {
+    console.error("Cannot start recording: no active tab available.");
+    chrome.runtime.sendMessage({
+      type: "recording-error",
+      error: "stream-error",
+      why: "No active tab available",
+    });
+    return;
+  }
+
   chrome.storage.local.set({
     activeTab: activeTab.id,
     tabRecordedID: null,
     memoryError: false,
   });
 
-  if (activeTab.url.includes(chrome.runtime.getURL("playground.html"))) {
+  if (activeTab.url?.includes(chrome.runtime.getURL("playground.html"))) {
     chrome.storage.local.set({ tabPreferred: true });
   } else {
     chrome.storage.local.set({ tabPreferred: false });

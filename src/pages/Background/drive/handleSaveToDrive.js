@@ -166,7 +166,13 @@ export const handleSaveToDrive = async (request, fallback = false) => {
       response = await saveToDrive(blob, fileName);
     }
 
-    await savedToDrive();
+    // Only tell the UI the recording was saved when the upload actually
+    // succeeded. saveToDrive() swallows its errors and returns { status: "ew" },
+    // so calling savedToDrive() unconditionally showed a false "saved to Drive"
+    // success even when the upload failed.
+    if (response?.status === "ok") {
+      await savedToDrive();
+    }
     return response;
   } catch (err) {
     console.error("handleSaveToDrive failed:", err);

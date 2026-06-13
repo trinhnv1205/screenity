@@ -137,7 +137,10 @@ export class VideoAudioMixer {
         resolve(v.duration);
         URL.revokeObjectURL(v.src);
       };
-      v.onerror = reject;
+      v.onerror = (e) => {
+        URL.revokeObjectURL(v.src);
+        reject(e);
+      };
     });
   }
 }

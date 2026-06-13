@@ -8,6 +8,9 @@ import { contentStateContext } from "../context/ContentState";
 const Shortcuts = ({ shortcuts }) => {
   const [contentState, setContentState] = useContext(contentStateContext);
   const contentStateRef = useRef(contentState);
+  // Tracks whether push-to-talk is the reason the mic is currently on, so the
+  // keyup handler only turns it back off for push-to-talk (not a manual toggle).
+  const pushToTalkActiveRef = useRef(false);
 
   useEffect(() => {
     contentStateRef.current = contentState;
@@ -40,6 +43,10 @@ const Shortcuts = ({ shortcuts }) => {
     const handleKeyDown = (event) => {
       if (!contentStateRef.current.pushToTalk) return;
       if (event.code === "KeyU" && event.altKey && event.shiftKey) {
+        // Ignore auto-repeat keydown events while the combo stays held.
+        if (pushToTalkActiveRef.current) return;
+        pushToTalkActiveRef.current = true;
+
         setContentState((prevContentState) => ({
           ...prevContentState,
           micActive: true,
@@ -52,29 +59,38 @@ const Shortcuts = ({ shortcuts }) => {
         chrome.runtime.sendMessage({
           type: "set-mic-active-tab",
           active: true,
-          defaultAudioInput: contentState.defaultAudioInput,
+          defaultAudioInput: contentStateRef.current.defaultAudioInput,
         });
       }
     };
 
     const handleKeyUp = (event) => {
       if (!contentStateRef.current.pushToTalk) return;
-      if (event.code === "KeyU" && event.altKey && event.shiftKey) {
-        setContentState((prevContentState) => ({
-          ...prevContentState,
-          micActive: false,
-        }));
+      if (!pushToTalkActiveRef.current) return;
 
-        chrome.storage.local.set({
-          micActive: false,
-        });
+      // End push-to-talk as soon as any key in the Alt+Shift+U combo is
+      // released. Previously this required all three to still be held on the
+      // keyup, so releasing a modifier before "U" left the mic stuck on.
+      const comboStillHeld =
+        event.altKey && event.shiftKey && event.code !== "KeyU";
+      if (comboStillHeld) return;
 
-        chrome.runtime.sendMessage({
-          type: "set-mic-active-tab",
-          active: false,
-          defaultAudioInput: contentState.defaultAudioInput,
-        });
-      }
+      pushToTalkActiveRef.current = false;
+
+      setContentState((prevContentState) => ({
+        ...prevContentState,
+        micActive: false,
+      }));
+
+      chrome.storage.local.set({
+        micActive: false,
+      });
+
+      chrome.runtime.sendMessage({
+        type: "set-mic-active-tab",
+        active: false,
+        defaultAudioInput: contentStateRef.current.defaultAudioInput,
+      });
     };
 
     window.addEventListener("keydown", handleKeyDown);

@@ -775,6 +775,12 @@ const ContentState = (props) => {
       }));
     } else if (event.data.type === "new-frame") {
       const url = URL.createObjectURL(event.data.frame);
+      // Revoke the previously generated frame URL so we don't leak a blob URL
+      // every time a new frame is produced (e.g. while scrubbing or cropping).
+      const prevFrame = contentStateRef.current.frame;
+      if (prevFrame && prevFrame.startsWith("blob:")) {
+        URL.revokeObjectURL(prevFrame);
+      }
       setContentState((prevContentState) => ({
         ...prevContentState,
         frame: url,

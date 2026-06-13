@@ -95,7 +95,10 @@ export const setupHandlers = () => {
   registerMessage("restarted", (message) => restartActiveTab(message));
 
   registerMessage("new-chunk", (message, sender, sendResponse) => {
-    newChunk(message, sendResponse);
+    // newChunk's signature is (request, sender, sendResponse); passing only
+    // (message, sendResponse) left its sendResponse undefined, so it threw when
+    // trying to acknowledge the chunk.
+    newChunk(message, sender, sendResponse);
     return true;
   });
 
